@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Final Standings Simulator by Fırat Yöndem</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#1f2637;
+  --border:#2d3748;--text:#e2e8f0;--muted:#718096;
+  --green:#48bb78;--yellow:#ecc94b;--red:#fc8181;--blue:#63b3ed;
+}
+body{font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── Header ── */
+header{
+  background:linear-gradient(135deg,#1a2035 0%,#0d1117 100%);
+  border-bottom:2px solid #2d3748;
+  padding:14px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+header h1{font-size:1.25rem;font-weight:700;color:#fff;line-height:1.2}
+header .sub{font-size:0.78rem;color:var(--muted);margin-top:2px}
+.tag{font-size:0.68rem;padding:3px 10px;border-radius:99px;font-weight:700;background:#1a4a2e;color:#48bb78;white-space:nowrap}
+.author{font-size:0.82rem;font-weight:700;color:#c9d1d9;letter-spacing:.03em;opacity:.85}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:380px 1fr;min-height:calc(100vh - 61px)}
+.panel{padding:16px;overflow-y:auto}
+.panel.left{border-right:1px solid var(--border);background:var(--surface)}
+.panel.right{border-left:1px solid var(--border);background:var(--surface)}
+.panel.center{background:var(--bg);display:flex;flex-direction:column;gap:8px;padding:14px}
+
+.sec-title{
+  font-size:0.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)
+}
+
+/* ── Standings table ── */
+.st{width:100%;border-collapse:collapse;font-size:0.8rem}
+.st th{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+       padding:3px 5px;border-bottom:1px solid var(--border);text-align:left}
+.st td{padding:4px 5px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.pos{
+  font-size:.7rem;font-weight:700;width:20px;height:20px;
+  display:inline-flex;align-items:center;justify-content:center;border-radius:4px
+}
+.p-po{background:#1a4a2e;color:#48bb78}
+.p-pi{background:#4a3a00;color:#ecc94b}
+.p-out{background:#2d1616;color:#fc8181;opacity:.7}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.tcell{display:flex;align-items:center;gap:5px}
+.tname{font-weight:600}
+.wnum{font-weight:700;font-size:.85rem}
+.delta{font-size:.7rem;color:var(--green);font-weight:700}
+.tie-warn{font-size:.6rem;color:var(--red);font-weight:700;padding:1px 4px;background:#3d1616;border-radius:3px}
+
+/* ── Game cards ── */
+.game-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;overflow:hidden;transition:border-color .2s
+}
+.game-card.done{border-color:#2d5a3d}
+.game-hdr{
+  background:var(--surface2);padding:3px 10px;
+  font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;
+  display:flex;justify-content:space-between;align-items:center
+}
+.game-hdr .done-mark{color:#48bb78;font-weight:700}
+.game-body{display:flex;align-items:stretch}
+.tbtn{
+  flex:1;padding:8px 8px;background:transparent;border:none;
+  color:var(--text);cursor:pointer;display:flex;align-items:center;
+  gap:6px;font-size:.78rem;font-weight:600;transition:background .15s;
+  font-family:inherit;position:relative
+}
+.tbtn:hover{background:rgba(255,255,255,.04)}
+.tbtn.win{opacity:1}
+.tbtn.lose{opacity:.35}
+.tbtn.away{justify-content:flex-end;text-align:right}
+.win-label{font-size:.6rem;font-weight:700;padding:1px 4px;border-radius:3px;white-space:nowrap}
+.vs-sep{
+  padding:0 6px;display:flex;align-items:center;color:var(--muted);
+  font-size:.62rem;font-weight:700;background:var(--surface2);
+  border-left:1px solid var(--border);border-right:1px solid var(--border)
+}
+
+/* ── Projected standings ── */
+.bracket-label{
+  font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  padding:7px 12px;border-radius:6px;margin-bottom:5px;margin-top:10px;
+}
+.bracket-label:first-child{margin-top:0}
+.bracket-po{background:#1a4a2e;color:#48bb78;border-left:3px solid #48bb78}
+.bracket-pi{background:#4a3a00;color:#ecc94b;border-left:3px solid #ecc94b}
+.proj-row{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 12px;border-radius:7px;margin-bottom:4px;
+  background:var(--surface2);border:1px solid var(--border);
+  transition:border-color .2s;
+}
+.proj-row:hover{border-color:rgba(255,255,255,.18)}
+.proj-pos{
+  font-size:.82rem;font-weight:800;width:26px;height:26px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:5px;flex-shrink:0;
+}
+.proj-name{
+  font-weight:700;font-size:.92rem;padding:3px 10px;border-radius:5px;flex:1;
+}
+.proj-wins{font-weight:800;font-size:.95rem;min-width:32px;text-align:right}
+.proj-delta{font-size:.75rem;color:var(--green);font-weight:700;min-width:26px;text-align:right}
+
+/* ── Matchup section ── */
+.matchup-section{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.matchup-title{font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.matchup-row{
+  display:flex;align-items:center;gap:6px;margin-bottom:5px;
+  padding:7px 10px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);
+}
+.matchup-seed{font-size:.65rem;font-weight:700;color:var(--muted);width:16px;text-align:center;flex-shrink:0}
+.matchup-chip{font-size:.78rem;font-weight:700;padding:3px 9px;border-radius:4px;white-space:nowrap}
+.matchup-vs{font-size:.68rem;color:var(--muted);font-weight:700;flex-shrink:0}
+.matchup-note{font-size:.62rem;color:var(--muted);margin-left:auto}
+
+/* ── Play-In interactive buttons ── */
+.pi-row{display:flex;align-items:center;gap:5px;margin-bottom:5px;
+        padding:6px 8px;background:var(--surface2);border-radius:6px;border:1px solid var(--border)}
+.pi-pick{background:transparent;border:1px solid transparent;color:var(--text);cursor:pointer;
+         display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border-radius:5px;
+         font-family:inherit;font-weight:700;font-size:.82rem;transition:all .15s;white-space:nowrap}
+.pi-pick:hover{background:rgba(255,255,255,.06)}
+.pi-pick.pi-win{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.06)}
+.pi-pick.pi-lose{opacity:.22}
+.pi-seed{font-size:.62rem;font-weight:700;color:var(--muted)}
+.pi-note{font-size:.6rem;color:var(--muted);margin-left:auto;white-space:nowrap}
+
+/* ── Progress ── */
+.prog-wrap{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.prog-bar{height:3px;background:var(--border);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#48bb78,#38a169);border-radius:99px;transition:width .3s}
+.reset-btn{
+  background:var(--surface2);border:1px solid var(--border);color:var(--muted);
+  padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.75rem;
+  transition:color .2s;font-family:inherit
+}
+.reset-btn:hover{color:var(--text)}
+
+/* ── Notices ── */
+.notice{font-size:.7rem;padding:7px 10px;border-radius:6px;margin-top:6px;line-height:1.5}
+.n-warn{background:#3d2f00;color:#ecc94b;border-left:3px solid #ecc94b}
+.n-err{background:#3d1f1f;color:#fc8181;border-left:3px solid #fc8181}
+.n-info{background:#1a2a3a;color:#63b3ed;border-left:3px solid #63b3ed}
+
+
+@media(max-width:960px){
+  /* Header compact */
+  header{padding:10px 14px;gap:6px}
+  header h1{font-size:1rem}
+  header .sub{font-size:.65rem}
+  .tag{font-size:.6rem;padding:2px 8px}
+  .author{font-size:.72rem}
+
+  /* Single-column stacked layout — games first, then scroll to standings */
+  .layout{grid-template-columns:1fr;min-height:auto}
+  .panel{padding:14px;overflow-y:visible}
+  .panel.center{min-height:auto}
+  .panel.right{
+    border:none;border-top:2px solid var(--border);
+    background:var(--bg); /* slightly different bg so scroll break is visible */
+  }
+
+  /* Bigger touch targets for game buttons */
+  .tbtn{padding:15px 10px;font-size:.92rem}
+  .win-label{font-size:.72rem;padding:2px 7px}
+  .vs-sep{padding:0 10px;font-size:.72rem}
+  .game-hdr{padding:5px 12px;font-size:.62rem}
+
+  /* Bigger play-in buttons */
+  .pi-pick{padding:11px 10px;font-size:.9rem;min-height:46px}
+  .pi-row{padding:9px 10px;gap:7px}
+  .pi-note,.matchup-note{display:none}
+
+  /* Bigger projected standing rows */
+  .proj-row{padding:12px 14px;margin-bottom:5px}
+  .proj-name{font-size:1rem;padding:3px 10px}
+  .proj-pos{width:30px;height:30px;font-size:.88rem}
+  .proj-wins{font-size:1.05rem}
+  .bracket-label{font-size:.72rem;padding:8px 12px;margin-top:12px}
+
+  /* Matchup rows */
+  .matchup-chip{font-size:.88rem;padding:5px 11px}
+  .matchup-row{padding:9px 10px;gap:7px;flex-wrap:wrap}
+  .matchup-seed{width:20px}
+
+  /* Progress & reset */
+  .reset-btn{padding:8px 16px;font-size:.8rem}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🏀 Final Standings Simulator &nbsp;·&nbsp; by Fırat Yöndem</h1>
+    <div class="sub">Round 38 + 1 Postponed Fixture &nbsp;·&nbsp; 10 games &nbsp;·&nbsp; 1024 possible outcomes &nbsp;·&nbsp; Full EuroLeague tiebreaker logic</div>
+  </div>
+  <span class="tag">2025-26 Season</span>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT: Game picker -->
+  <div class="panel center">
+    <div class="prog-wrap">
+      <div>
+        <div class="sec-title" style="margin:0">Select Game Winners</div>
+        <div style="font-size:.73rem;color:var(--muted);margin-top:2px">
+          <span id="sel-count">0</span> / 10 selected
+        </div>
+      </div>
+      <button class="reset-btn" onclick="resetAll()">↺ Reset all</button>
+    </div>
+    <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    <div id="games-wrap"></div>
+    <div id="notices"></div>
+  </div>
+
+  <!-- RIGHT: Projected standings -->
+  <div class="panel right">
+    <div class="sec-title">Projected Final Standings</div>
+    <div id="proj-standings"></div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA — ⚠ PLACEHOLDERS: update base wins + overall pt diff after Rd 37
+// ═══════════════════════════════════════════════════════════════════
+
+// Final standings after Round 37
+const BASE_WINS = {
+  'Olympiacos':    25,
+  'Valencia':      24,
+  'Real Madrid':   23,
+  'Fenerbahçe':    23,
+  'Hapoel':        22,
+  'Zalgiris':      22,  // beat Partizan Rd 37
+  'Panathinaikos': 21,
+  'Monaco':        21,  // beat Barcelona Rd 37
+  'Red Star':      21,  // beat ASVEL Rd 37
+  'Barcelona':     20,
+  'Dubai':         19,
+  'Maccabi':       18,
+  'Bayern':        17,
+  'Milano':        17,
+  'Paris':         15,
+  'Efes':          12,  // beat Dubai Rd 37
+  'ASVEL':          8,
+  'Bologna':        0,  // ⚠ still needed
+};
+
+// ⚠ FILL WITH REAL VALUES — used as final tiebreaker fallback
+// Average point differential per game across full season
+const OVERALL_PT_DIFF = {
+  'Olympiacos':    0,  // ← REPLACE
+  'Valencia':      0,
+  'Real Madrid':   0,
+  'Fenerbahçe':    0,
+  'Hapoel':        0,
+  'Zalgiris':      0,
+  'Panathinaikos': 0,
+  'Monaco':        0,
+  'Red Star':      0,
+  'Barcelona':     0,
+  'Dubai':         0,
+  'Maccabi':       0,
+  'Bayern':        0,
+  'Milano':        0,
+  'Paris':         0,
+  'Efes':          0,
+  'ASVEL':         0,
+  'Bologna':       0,  // ⚠ REPLACE
+};
+
+const TEAM_COLORS = {
+  'Olympiacos':    {bg:'#CC0000',fg:'#fff'},
+  'Valencia':      {bg:'#FF6600',fg:'#fff'},
+  'Real Madrid':   {bg:'#9B7700',fg:'#fff'},
+  'Fenerbahçe':    {bg:'#D4B800',fg:'#111'},
+  'Hapoel':        {bg:'#DD0066',fg:'#fff'},
+  'Zalgiris':      {bg:'#00923F',fg:'#fff'},
+  'Panathinaikos': {bg:'#005522',fg:'#fff'},
+  'Monaco':        {bg:'#AA0033',fg:'#fff'},
+  'Red Star':      {bg:'#CC4400',fg:'#fff'},
+  'Barcelona':     {bg:'#003DA5',fg:'#fff'},
+  'Dubai':         {bg:'#0099AA',fg:'#fff'},
+  'Maccabi':       {bg:'#B8970A',fg:'#fff'},
+  'Bayern':        {bg:'#7A001A',fg:'#fff'},
+  'Milano':        {bg:'#E8001C',fg:'#fff'},
+  'Paris':         {bg:'#5544DD',fg:'#fff'},
+  'Efes':          {bg:'#0055CC',fg:'#fff'},
+  'ASVEL':         {bg:'#6600AA',fg:'#fff'},
+  'Bologna':       {bg:'#1A1A1A',fg:'#FFD700'},
+};
+
+const GAMES = [
+  {id:'g1', home:'ASVEL',         away:'Fenerbahçe',  label:'G1', note:'Rd 38 · Apr 16'},
+  {id:'g10',home:'Maccabi',       away:'Bologna',     label:'G2', note:'Rd 38 · Apr 16'},
+  {id:'g2', home:'Olympiacos',    away:'Milano',      label:'G3', note:'Rd 38 · Apr 16'},
+  {id:'g3', home:'Real Madrid',   away:'Red Star',    label:'G4', note:'Rd 38 · Apr 16'},
+  {id:'g4', home:'Zalgiris',      away:'Paris',       label:'G5', note:'Rd 38 · Apr 17'},
+  {id:'g5', home:'Monaco',        away:'Hapoel',      label:'G6', note:'Rd 38 · Apr 17'},
+  {id:'g6', home:'Dubai',         away:'Valencia',    label:'G7', note:'Rd 38 · Apr 17'},
+  {id:'g7', home:'Panathinaikos', away:'Efes',        label:'G8', note:'Rd 38 · Apr 17'},
+  {id:'g8', home:'Barcelona',     away:'Bayern',      label:'G9', note:'Rd 38 · Apr 17'},
+  {id:'g9', home:'Maccabi',       away:'Hapoel',      label:'G10',note:'Postponed fixture'},
+];
+
+// ── H2H game records ─────────────────────────────────────────────────────────
+// { home, away, homeScore, awayScore, ot, played,
+//   regHomeScore, regAwayScore (regulation scores for OT games),
+//   isR38Game (gameId if this is a Rd 38 fixture to be simulated),
+//   missingData (flag for truly unknown data) }
+//
+// OT games: homeScore/awayScore = FINAL score (incl. OT).
+//           regHomeScore/regAwayScore = score at end of REGULATION.
+//           ⚠ REPLACE null values with real regulation scores.
+//
+// ⚠ Hapoel vs Maccabi regular-season leg (Hapoel home) is MISSING from provided data.
+// ⚠ Monaco vs Barcelona (Monaco home) shows as unplayed — clarify if this is a postponed game.
+const H2H = [
+  // ── Olympiacos / Valencia ──
+  {home:'Olympiacos',away:'Valencia',  homeScore:92, awayScore:99, ot:false,played:true},
+  {home:'Valencia',  away:'Olympiacos',homeScore:85, awayScore:84, ot:false,played:true},
+
+  // ── Valencia / Real Madrid ──
+  {home:'Valencia',  away:'Real Madrid',homeScore:89,awayScore:76, ot:false,played:true},
+  {home:'Real Madrid',away:'Valencia', homeScore:96,awayScore:79, ot:false,played:true},
+
+  // ── Valencia / Fenerbahçe ──
+  {home:'Valencia',  away:'Fenerbahçe',homeScore:94,awayScore:76, ot:false,played:true},
+  {home:'Fenerbahçe',away:'Valencia',  homeScore:82,awayScore:76, ot:false,played:true},
+
+  // ── Valencia / Hapoel ──
+  {home:'Valencia',away:'Hapoel',homeScore:93, awayScore:100,ot:false,played:true},
+  {home:'Hapoel',away:'Valencia',homeScore:99,awayScore:104,ot:true,played:true,
+   regHomeScore:99,regAwayScore:104},
+
+  // ── Real Madrid / Fenerbahçe ──
+  {home:'Real Madrid',away:'Fenerbahçe',homeScore:84,awayScore:58,ot:false,played:true},
+  {home:'Fenerbahçe', away:'Real Madrid',homeScore:69,awayScore:74,ot:false,played:true},
+
+  // ── Real Madrid / Hapoel ──
+  {home:'Hapoel',    away:'Real Madrid',homeScore:74,awayScore:75,ot:false,played:true},
+  {home:'Real Madrid',away:'Hapoel',    homeScore:92,awayScore:83,ot:false,played:true},
+
+  // ── Real Madrid / Zalgiris ──
+  {home:'Real Madrid',away:'Zalgiris',homeScore:100,awayScore:99,ot:false,played:true},
+  {home:'Zalgiris',  away:'Real Madrid',homeScore:87,awayScore:85,ot:false,played:true},
+
+  // ── Fenerbahçe / Hapoel ──
+  {home:'Hapoel',    away:'Fenerbahçe',homeScore:95,awayScore:80,ot:false,played:true},
+  {home:'Fenerbahçe',away:'Hapoel',    homeScore:74,awayScore:68,ot:false,played:true},
+
+  // ── Fenerbahçe / Zalgiris ──
+  {home:'Zalgiris',  away:'Fenerbahçe',homeScore:84,awayScore:81,ot:false,played:true},
+  {home:'Fenerbahçe',away:'Zalgiris',  homeScore:82,awayScore:92,ot:false,played:true},
+
+  // ── Hapoel / Zalgiris ──
+  {home:'Hapoel',  away:'Zalgiris',homeScore:80,awayScore:93,ot:false,played:true},
+  {home:'Zalgiris',away:'Hapoel',  homeScore:93,awayScore:82,ot:false,played:true},
+
+  // ── Hapoel / Panathinaikos ──
+  {home:'Hapoel',       away:'Panathinaikos',homeScore:92,awayScore:88,ot:false,played:true},
+  {home:'Panathinaikos',away:'Hapoel',       homeScore:93,awayScore:82,ot:false,played:true},
+
+  // ── Hapoel / Barcelona ──
+  {home:'Hapoel',    away:'Barcelona',homeScore:103,awayScore:87,ot:false,played:true},
+  {home:'Barcelona', away:'Hapoel',   homeScore:75, awayScore:80,ot:false,played:true},
+
+  // ── Hapoel / Monaco ── (G5 unplayed: Monaco home = Round 38)
+  {home:'Hapoel',away:'Monaco',homeScore:85,awayScore:77,ot:false,played:true},
+  {home:'Monaco',away:'Hapoel',homeScore:null,awayScore:null,ot:false,played:false,isR38Game:'g5'},
+
+  // ── Hapoel / Red Star ──
+  {home:'Red Star',away:'Hapoel',homeScore:87,awayScore:75,ot:false,played:true},
+  {home:'Hapoel',  away:'Red Star',homeScore:84,awayScore:78,ot:false,played:true},
+
+  // ── Hapoel / Maccabi ── (G9 unplayed: Maccabi home = postponed fixture)
+  // ⚠ MISSING: Hapoel home vs Maccabi regular-season leg — please provide score
+  {home:'Hapoel', away:'Maccabi',homeScore:null,awayScore:null,ot:false,played:false,
+   missingData:true,missingNote:'Hapoel home vs Maccabi regular-season game — score not provided'},
+  {home:'Maccabi',away:'Hapoel', homeScore:null,awayScore:null,ot:false,played:false,isR38Game:'g9'},
+
+  // ── Zalgiris / Panathinaikos ──
+  {home:'Zalgiris',     away:'Panathinaikos',homeScore:85,awayScore:92,ot:false,played:true},
+  {home:'Panathinaikos',away:'Zalgiris',     homeScore:92,awayScore:88,ot:false,played:true},
+
+  // ── Zalgiris / Barcelona ──
+  {home:'Zalgiris',  away:'Barcelona',homeScore:83,awayScore:71,ot:false,played:true},
+  {home:'Barcelona', away:'Zalgiris', homeScore:73,awayScore:88,ot:false,played:true},
+
+  // ── Zalgiris / Monaco ──
+  {home:'Monaco',  away:'Zalgiris',homeScore:84, awayScore:89,ot:false,played:true},
+  {home:'Zalgiris',away:'Monaco',  homeScore:104,awayScore:87,ot:false,played:true},
+
+  // ── Zalgiris / Red Star ──
+  {home:'Zalgiris', away:'Red Star',homeScore:99,awayScore:67,ot:false,played:true},
+  {home:'Red Star', away:'Zalgiris',homeScore:88,awayScore:79,ot:false,played:true},
+
+  // ── Zalgiris / Dubai ──
+  {home:'Zalgiris',away:'Dubai',homeScore:65,awayScore:77,ot:false,played:true},
+  {home:'Dubai',   away:'Zalgiris',homeScore:95,awayScore:89,ot:false,played:true},
+
+  // ── Panathinaikos / Barcelona ──
+  {home:'Barcelona',    away:'Panathinaikos',homeScore:79, awayScore:93, ot:false,played:true},
+  {home:'Panathinaikos',away:'Barcelona',    homeScore:96, awayScore:103,ot:false,played:true},
+
+  // ── Panathinaikos / Monaco ──
+  {home:'Monaco',       away:'Panathinaikos',homeScore:92, awayScore:84,ot:false,played:true},
+  {home:'Panathinaikos',away:'Monaco',       homeScore:107,awayScore:97,ot:false,played:true},
+
+  // ── Panathinaikos / Red Star ──
+  {home:'Panathinaikos',away:'Red Star',homeScore:82,awayScore:74,ot:false,played:true},
+  {home:'Red Star',     away:'Panathinaikos',homeScore:86,awayScore:68,ot:false,played:true},
+
+  // ── Panathinaikos / Dubai ──
+  {home:'Dubai',        away:'Panathinaikos',homeScore:104,awayScore:107,ot:false,played:true},
+  {home:'Panathinaikos',away:'Dubai',        homeScore:103,awayScore:82, ot:false,played:true},
+
+  // ── Barcelona / Monaco ──
+  // ── Barcelona / Monaco ──
+  {home:'Monaco',    away:'Barcelona',homeScore:93, awayScore:86, ot:false,played:true},
+  {home:'Barcelona', away:'Monaco',   homeScore:74, awayScore:90, ot:false,played:true},
+
+  // ── Barcelona / Red Star ──
+  {home:'Barcelona',away:'Red Star',homeScore:92,awayScore:88,ot:false,played:true},
+  {home:'Red Star', away:'Barcelona',homeScore:79,awayScore:89,ot:false,played:true},
+
+  // ── Barcelona / Dubai ──
+  {home:'Barcelona',away:'Dubai',homeScore:91,awayScore:89,ot:false,played:true},
+  {home:'Dubai',    away:'Barcelona',homeScore:83,awayScore:78,ot:false,played:true},
+
+  // ── Barcelona / Maccabi ──
+  {home:'Barcelona',away:'Maccabi',homeScore:93,awayScore:83,ot:false,played:true},
+  {home:'Maccabi',  away:'Barcelona',homeScore:71,awayScore:92,ot:false,played:true},
+
+  // ── Monaco / Red Star ──
+  {home:'Monaco',  away:'Red Star',homeScore:96, awayScore:100,ot:false,played:true},
+  {home:'Red Star',away:'Monaco',  homeScore:91, awayScore:79, ot:false,played:true},
+
+  // ── Monaco / Dubai ──
+  {home:'Monaco',away:'Dubai',homeScore:103,awayScore:81, ot:false,played:true},
+  {home:'Dubai', away:'Monaco',homeScore:101,awayScore:91, ot:false,played:true},
+
+  // ── Monaco / Maccabi ──
+  {home:'Monaco', away:'Maccabi',homeScore:86, awayScore:91, ot:false,played:true},
+  {home:'Maccabi',away:'Monaco', homeScore:107,awayScore:112,ot:false,played:true},
+
+  // ── Red Star / Dubai ──
+  {home:'Dubai',   away:'Red Star',homeScore:102,awayScore:86,ot:false,played:true},
+  {home:'Red Star',away:'Dubai',   homeScore:95, awayScore:92,ot:false,played:true},
+
+  // ── Red Star / Maccabi ──
+  {home:'Red Star',away:'Maccabi',homeScore:82,awayScore:83,ot:false,played:true},
+  {home:'Maccabi', away:'Red Star',homeScore:92,awayScore:99,ot:false,played:true},
+
+  // ── Dubai / Maccabi ──
+  {home:'Dubai',  away:'Maccabi',homeScore:95, awayScore:97, ot:false,played:true},
+  {home:'Maccabi',away:'Dubai',  homeScore:104,awayScore:100,ot:true, played:true,
+   regHomeScore:104,regAwayScore:100},
+
+  // ── Dubai / Efes ── (Rd 37: Dubai 69-85 Efes)
+  {home:'Dubai',away:'Efes',homeScore:69,awayScore:85,ot:false,played:true},
+
+  // ── ASVEL / Red Star ── (Rd 37: ASVEL 93-106 Red Star)
+  {home:'ASVEL',away:'Red Star',homeScore:93,awayScore:106,ot:false,played:true},
+
+  // ── Bayern / Milano ── (Bayern wins both legs)
+  {home:'Bayern', away:'Milano', homeScore:64, awayScore:53, ot:false,played:true},
+  {home:'Milano', away:'Bayern', homeScore:84, awayScore:94, ot:false,played:true},
+
+  // ── Milano / Maccabi ── (Milano wins both legs)
+  {home:'Milano', away:'Maccabi',homeScore:96, awayScore:87, ot:false,played:true},
+  {home:'Maccabi',away:'Milano', homeScore:88, awayScore:102,ot:false,played:true},
+
+  // ── Maccabi / Bologna ── (G10: Maccabi home = postponed Rd 28 fixture)
+  // ⚠ Bologna away game at Maccabi not yet played (G10)
+  {home:'Maccabi',away:'Bologna',homeScore:null,awayScore:null,ot:false,played:false,isR38Game:'g10'},
+  // ⚠ Bologna home vs Maccabi regular-season leg — score not provided
+  {home:'Bologna',away:'Maccabi',homeScore:null,awayScore:null,ot:false,played:false,
+   missingData:true,missingNote:'Bologna home vs Maccabi (Rd 28 regular-season leg) — result not yet provided'},
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+const sel = {};
+GAMES.forEach(g => sel[g.id] = null);
+
+// Play-In selections: a=7v8, b=9v10, c=loser-of-a vs winner-of-b
+const piSel = {a:null, b:null, c:null};
+
+// ═══════════════════════════════════════════════════════════════════
+// TIEBREAKER ENGINE
+// ═══════════════════════════════════════════════════════════════════
+
+/** Resolve effective score: use regulation scores for OT, full score otherwise */
+function effScore(game){
+  if(game.ot){
+    return {h: game.regHomeScore ?? game.homeScore, a: game.regAwayScore ?? game.awayScore};
+  }
+  return {h: game.homeScore, a: game.awayScore};
+}
+
+/** Augment H2H data with current game selections (R38 games between tied teams) */
+function augmentH2H(currentSel){
+  return H2H.map(g => {
+    if(!g.played && g.isR38Game && currentSel[g.isR38Game]){
+      const s = currentSel[g.isR38Game]; // 'home' or 'away'
+      return {...g, played:true, homeScore: s==='home'?1:0, awayScore: s==='home'?0:1, scoreUnknown:true};
+    }
+    return g;
+  });
+}
+
+/** Gather H2H games between two specific teams */
+function getH2H(a, b, allGames){
+  return allGames.filter(g => g.played &&
+    ((g.home===a && g.away===b)||(g.home===b && g.away===a))
+  );
+}
+
+/** Resolve 2-team tie. Returns {order:[winner,loser], flags:[], unresolved:bool} */
+function resolve2(a, b, allGames, flags){
+  const games = getH2H(a, b, allGames);
+  let wA=0,wB=0, pdA=0,pdB=0, awayA=0,awayB=0, pdUnknown=false;
+
+  for(const g of games){
+    // Win (uses final score including OT)
+    if(g.homeScore > g.awayScore){ if(g.home===a) wA++; else wB++; }
+    else if(g.awayScore > g.homeScore){ if(g.away===a) wA++; else wB++; }
+
+    // Pt diff & away pts (use regulation scores; flag if unavailable)
+    const {h, a: asc} = effScore(g);
+    if(h===null || asc===null || g.scoreUnknown){
+      pdUnknown = true;
+    } else {
+      if(g.home===a){ pdA+=h-asc; pdB+=asc-h; awayB+=asc; }
+      else          { pdB+=h-asc; pdA+=asc-h; awayA+=asc; }
+    }
+  }
+
+  // 1. H2H wins
+  if(wA!==wB) return {order: wA>wB?[a,b]:[b,a], flags};
+
+  // 2. H2H pt diff
+  if(pdUnknown){
+    flags.push(`⚠ H2H pt diff between ${a} & ${b}: some game scores unavailable (R38 result or OT regulation score missing). Verify manually.`);
+  } else if(pdA!==pdB){
+    flags.push(`H2H pt diff resolved: ${pdA>pdB?a:b} over ${pdA>pdB?b:a} (+${Math.abs(pdA-pdB)})`);
+    return {order: pdA>pdB?[a,b]:[b,a], flags};
+  }
+
+  // 3. Away points in H2H
+  if(!pdUnknown && awayA!==awayB){
+    flags.push(`Away pts resolved: ${awayA>awayB?a:b} over ${awayA>awayB?b:a}`);
+    return {order: awayA>awayB?[a,b]:[b,a], flags};
+  }
+
+  // 4. Overall pt diff
+  const ovA=OVERALL_PT_DIFF[a]??0, ovB=OVERALL_PT_DIFF[b]??0;
+  if(ovA!==0||ovB!==0){
+    if(ovA!==ovB){
+      flags.push(`Overall pt diff resolved: ${ovA>ovB?a:b} over ${ovA>ovB?b:a}`);
+      return {order: ovA>ovB?[a,b]:[b,a], flags};
+    }
+  } else {
+    flags.push(`⚠ Overall pt diff not set for ${a} & ${b} — tie unresolved. Update OVERALL_PT_DIFF in code.`);
+  }
+
+  return {order:[a,b], flags, unresolved:true};
+}
+
+/** Resolve multi-team tie. Returns {order:[], flags:[]} */
+function resolveMulti(group, allGames, flags){
+  if(group.length===1) return {order:group, flags};
+  if(group.length===2) return resolve2(group[0],group[1],allGames,flags);
+
+  // Filter H2H to only intra-group games
+  const sub = allGames.filter(g => g.played && group.includes(g.home) && group.includes(g.away));
+
+  const h2wW={}, h2wPD={};
+  group.forEach(t=>{ h2wW[t]=0; h2wPD[t]=0; });
+  let pdUnknown=false;
+
+  for(const g of sub){
+    if(g.homeScore>g.awayScore) h2wW[g.home]++;
+    else if(g.awayScore>g.homeScore) h2wW[g.away]++;
+    const {h,a} = effScore(g);
+    if(h===null||a===null||g.scoreUnknown) pdUnknown=true;
+    else { h2wPD[g.home]+=h-a; h2wPD[g.away]+=a-h; }
+  }
+
+  // Sort by intra-group H2H wins
+  const sorted = [...group].sort((a,b)=>h2wW[b]-h2wW[a]);
+
+  // Split into subgroups of equal intra-H2H wins
+  const subgroups=[];
+  let cur=[sorted[0]];
+  for(let i=1;i<sorted.length;i++){
+    if(h2wW[sorted[i]]===h2wW[sorted[i-1]]) cur.push(sorted[i]);
+    else { subgroups.push([...cur]); cur=[sorted[i]]; }
+  }
+  subgroups.push(cur);
+
+  if(subgroups.length>1)
+    flags.push(`Multi-tie [${group.join(', ')}] partially resolved by intra-group H2H wins`);
+
+  const result=[];
+  for(const sg of subgroups){
+    if(sg.length===1){ result.push(sg[0]); continue; }
+
+    // Still tied within subgroup — use intra-group H2H pt diff
+    if(!pdUnknown){
+      const byPD=[...sg].sort((a,b)=>h2wPD[b]-h2wPD[a]);
+      const pdSubs=[];
+      let c=[byPD[0]];
+      for(let i=1;i<byPD.length;i++){
+        if(h2wPD[byPD[i]]===h2wPD[byPD[i-1]]) c.push(byPD[i]);
+        else { pdSubs.push([...c]); c=[byPD[i]]; }
+      }
+      pdSubs.push(c);
+
+      for(const pdg of pdSubs){
+        if(pdg.length===1){ result.push(pdg[0]); continue; }
+        // Remaining tied after multi-team criteria → apply 2-team rules pairwise
+        // Per EuroLeague: these teams are re-evaluated using 2-team tiebreaker
+        if(pdg.length===2){
+          const r=resolve2(pdg[0],pdg[1],allGames,flags);
+          result.push(...r.order);
+        } else {
+          // Deep multi-tie: use overall pt diff as fallback
+          const byOv=[...pdg].sort((a,b)=>(OVERALL_PT_DIFF[b]??0)-(OVERALL_PT_DIFF[a]??0));
+          if((OVERALL_PT_DIFF[pdg[0]]??0)===0)
+            flags.push(`⚠ Deep tie within [${pdg.join(', ')}] — overall pt diff is 0/unset. Verify manually.`);
+          result.push(...byOv);
+        }
+      }
+    } else {
+      // PD unknown — fall to 2-team if possible
+      flags.push(`⚠ Intra-group pt diff incomplete for [${sg.join(', ')}] — R38 scores unknown`);
+      if(sg.length===2){
+        const r=resolve2(sg[0],sg[1],allGames,flags);
+        result.push(...r.order);
+      } else {
+        const byOv=[...sg].sort((a,b)=>(OVERALL_PT_DIFF[b]??0)-(OVERALL_PT_DIFF[a]??0));
+        result.push(...byOv);
+      }
+    }
+  }
+  return {order:result, flags};
+}
+
+/** Main standings calculator */
+function calcStandings(currentSel){
+  const wins={...BASE_WINS};
+  for(const g of GAMES){
+    if(currentSel[g.id]){
+      const w = currentSel[g.id]==='home' ? g.home : g.away;
+      wins[w]=(wins[w]||0)+1;
+    }
+  }
+
+  const allGames = augmentH2H(currentSel);
+  const teams = Object.keys(wins).sort((a,b)=>wins[b]-wins[a]);
+
+  const result=[], flags=[];
+  let i=0;
+  while(i<teams.length){
+    let j=i;
+    while(j<teams.length && wins[teams[j]]===wins[teams[i]]) j++;
+    const group=teams.slice(i,j);
+    if(group.length===1){
+      result.push({team:group[0],wins:wins[group[0]],tied:false});
+    } else {
+      const {order}=resolveMulti(group,allGames,flags);
+      order.forEach(t=>result.push({team:t,wins:wins[t],tied:true,tiedWith:group.filter(x=>x!==t)}));
+    }
+    i=j;
+  }
+  return {standings:result, flags};
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════════════
+
+function posClass(p){
+  if(p<=6) return 'p-po';
+  if(p<=10) return 'p-pi';
+  return 'p-out';
+}
+function tc(team){ return TEAM_COLORS[team]||{bg:'#444',fg:'#fff'}; }
+
+
+
+function renderGames(){
+  let html='';
+  for(const g of GAMES){
+    const s=sel[g.id];
+    const hc=tc(g.home), ac=tc(g.away);
+    const hWin=s==='home', aWin=s==='away';
+    const hStyle=hWin?`background:${hc.bg}22;border-left:3px solid ${hc.bg}`:'';
+    const aStyle=aWin?`background:${ac.bg}22;border-right:3px solid ${ac.bg}`:'';
+    html+=`
+    <div class="game-card${s?' done':''}">
+      <div class="game-hdr">
+        <span>${g.label}${g.note.includes('Postponed')?' &nbsp;🔄&nbsp; Postponed':' &nbsp;·&nbsp; '+g.note}</span>
+        ${s?'<span class="done-mark">✓ Selected</span>':'<span>click to select</span>'}
+      </div>
+      <div class="game-body">
+        <button class="tbtn${hWin?' win':s?' lose':''}" style="${hStyle}" onclick="pick('${g.id}','home')">
+          <span class="dot" style="background:${hc.bg};width:11px;height:11px;border-radius:50%"></span>
+          ${g.home}
+          ${hWin?`<span class="win-label" style="background:${hc.bg};color:${hc.fg};margin-left:auto">WIN ✓</span>`:''}
+        </button>
+        <div class="vs-sep">vs</div>
+        <button class="tbtn away${aWin?' win':s?' lose':''}" style="${aStyle}" onclick="pick('${g.id}','away')">
+          ${aWin?`<span class="win-label" style="background:${ac.bg};color:${ac.fg};margin-right:auto">✓ WIN</span>`:''}
+          ${g.away}
+          <span class="dot" style="background:${ac.bg};width:11px;height:11px;border-radius:50%"></span>
+        </button>
+      </div>
+    </div>`;
+  }
+  document.getElementById('games-wrap').innerHTML=html;
+}
+
+function renderProjected(){
+  const cnt=Object.values(sel).filter(Boolean).length;
+  if(cnt===0){
+    document.getElementById('proj-standings').innerHTML=
+      '<div style="color:var(--muted);font-size:.88rem;padding:30px 10px;line-height:2;text-align:center">'+
+      '← Select game winners<br>to see projected standings.</div>';
+    document.getElementById('notices').innerHTML='';
+    return;
+  }
+
+  const {standings,flags}=calcStandings(sel);
+  let html='';
+
+  // ── Direct Playoff (1-6) ──
+  html+=`<div class="bracket-label bracket-po">🏆 Direct Playoff <span style="opacity:.55;font-weight:500;font-size:.62rem">· Positions 1–6</span></div>`;
+  standings.slice(0,6).forEach((s,idx)=>{
+    const p=idx+1, c=tc(s.team);
+    html+=`<div class="proj-row" style="border-color:#2d5a3d">
+      <span class="proj-pos p-po">${p}</span>
+      <span class="proj-name" style="background:${c.bg};color:${c.fg}">${s.team}</span>
+      <span class="proj-wins">${s.wins}W</span>
+    </div>`;
+  });
+
+  // ── Play-In (7-10) ──
+  html+=`<div class="bracket-label bracket-pi">⚡ Play-In <span style="opacity:.55;font-weight:500;font-size:.62rem">· Positions 7–10</span></div>`;
+  standings.slice(6,10).forEach((s,idx)=>{
+    const p=idx+7, c=tc(s.team);
+    html+=`<div class="proj-row" style="border-color:#5a4a00">
+      <span class="proj-pos p-pi">${p}</span>
+      <span class="proj-name" style="background:${c.bg};color:${c.fg}">${s.team}</span>
+      <span class="proj-wins">${s.wins}W</span>
+    </div>`;
+  });
+
+  // ── Matchups section ──
+  const get = i => standings[i-1]?.team ?? '?';
+  const cof = t => { const c=tc(t); return `background:${c.bg};color:${c.fg}`; };
+  const chip = (t,extra='') => `<span style="${cof(t)};padding:2px 8px;border-radius:4px;font-size:.82rem;font-weight:700;${extra}">${t}</span>`;
+
+  const [t7,t8,t9,t10]=[get(7),get(8),get(9),get(10)];
+
+  // Resolve play-in teams
+  const tA_winner = piSel.a==='home' ? t7 : piSel.a==='away' ? t8 : null;
+  const tA_loser  = piSel.a==='home' ? t8 : piSel.a==='away' ? t7 : null;
+  const tB_winner = piSel.b==='home' ? t9 : piSel.b==='away' ? t10 : null;
+  const tP7 = tA_winner;
+  const tP8 = (piSel.c && tA_loser && tB_winner)
+    ? (piSel.c==='home' ? tA_loser : tB_winner)
+    : null;
+
+  // ── Play-In Round 1 ──
+  html+=`<div class="matchup-section"><div class="matchup-title">⚡ Play-In — Round 1</div>`;
+
+  const piBtn=(game,side,team,seed,sel_)=>{
+    const won=sel_===side, lost=sel_&&sel_!==side;
+    return `<button class="pi-pick${won?' pi-win':lost?' pi-lose':''}" onclick="pickPI('${game}','${side}')">
+      <span class="pi-seed">${seed}</span>${chip(team)}
+    </button>`;
+  };
+
+  html+=`<div class="pi-row">
+    ${piBtn('a','home',t7,'#7',piSel.a)}
+    <span class="matchup-vs">vs</span>
+    ${piBtn('a','away',t8,'#8',piSel.a)}
+    <span class="pi-note">winner = #7 seed</span>
+  </div>
+  <div class="pi-row">
+    ${piBtn('b','home',t9,'#9',piSel.b)}
+    <span class="matchup-vs">vs</span>
+    ${piBtn('b','away',t10,'#10',piSel.b)}
+    <span class="pi-note">winner advances</span>
+  </div></div>`;
+
+  // ── Play-In Qualification ──
+  html+=`<div class="matchup-section"><div class="matchup-title">⚡ Play-In — Qualification</div>
+  <div style="font-size:.6rem;color:var(--muted);margin-bottom:6px">Loser of 7v8 hosts Winner of 9v10 → winner = #8 seed</div>`;
+
+  if(!piSel.a || !piSel.b){
+    html+=`<div class="pi-row" style="opacity:.4;pointer-events:none">
+      <span style="font-size:.75rem;color:var(--muted);font-style:italic">← Select Round 1 winners above first</span>
+    </div>`;
+  } else {
+    html+=`<div class="pi-row">
+      ${piBtn('c','home',tA_loser,'',piSel.c)}
+      <span class="matchup-vs">vs</span>
+      ${piBtn('c','away',tB_winner,'',piSel.c)}
+      <span class="pi-note">winner = #8 seed</span>
+    </div>`;
+  }
+  html+=`</div>`;
+
+  // ── Playoff QF Bracket ──
+  html+=`<div class="matchup-section"><div class="matchup-title">🏆 Playoff Bracket (QF)</div>`;
+  const qfRows=[
+    {sa:'#1',ta:get(1), sb:'#8',  tb:tP8,  ph:'Pick play-in winner'},
+    {sa:'#2',ta:get(2), sb:'#7',  tb:tP7,  ph:'Pick play-in winner'},
+    {sa:'#3',ta:get(3), sb:'#6',  tb:get(6),ph:null},
+    {sa:'#4',ta:get(4), sb:'#5',  tb:get(5),ph:null},
+  ];
+  for(const {sa,ta,sb,tb,ph} of qfRows){
+    html+=`<div class="matchup-row">
+      <span class="matchup-seed">${sa}</span>${chip(ta)}
+      <span class="matchup-vs">vs</span>
+      <span class="matchup-seed">${sb}</span>
+      ${tb ? chip(tb) : `<span style="font-size:.7rem;color:var(--muted);font-style:italic">${ph}</span>`}
+    </div>`;
+  }
+  html+=`</div>`;
+
+  document.getElementById('proj-standings').innerHTML=html;
+
+  // Flags/notices
+  let notHtml='';
+  const errs=flags.filter(f=>f.includes('⚠'));
+  const infos=flags.filter(f=>!f.includes('⚠'));
+  if(errs.length) notHtml+=`<div class="notice n-err">${errs.map(f=>`• ${f}`).join('<br>')}</div>`;
+  if(infos.length) notHtml+=`<div class="notice n-warn">${infos.map(f=>`• ${f}`).join('<br>')}</div>`;
+  document.getElementById('notices').innerHTML=notHtml;
+}
+
+function updateUI(){
+  const cnt=Object.values(sel).filter(Boolean).length;
+  document.getElementById('sel-count').textContent=cnt;
+  document.getElementById('prog-fill').style.width=(cnt/10*100)+'%';
+  renderGames();
+  renderProjected();
+}
+
+function pick(id, side){
+  sel[id] = sel[id]===side ? null : side;
+  piSel.a=null; piSel.b=null; piSel.c=null; // standings may shift, reset play-in
+  updateUI();
+}
+function pickPI(game, side){
+  piSel[game] = piSel[game]===side ? null : side;
+  if(game==='a'||game==='b') piSel.c = null; // reset qual game if round 1 changes
+  renderProjected();
+}
+function resetAll(){
+  GAMES.forEach(g=>sel[g.id]=null);
+  piSel.a=null; piSel.b=null; piSel.c=null;
+  updateUI();
+}
+
+// Init
+renderGames();
+renderProjected();
+updateUI();
+</script>
+</body>
+</html>
